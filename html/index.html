@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+    #npc-text-bubble {
+        display: none;
+        position: absolute;
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 16px;
+        max-width: 320px;
+        text-align: center;
+        transform: translate(-50%, -100%);
+    }
+
+    #voice-status {
+        display: none;
+        position: absolute;
+        left: 50%;
+        bottom: 8%;
+        transform: translateX(-50%);
+        background: rgba(180, 0, 0, 0.82);
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 16px;
+        font-size: 14px;
+        letter-spacing: 0.4px;
+    }
+</style>
+</head>
+<body>
+<div id="npc-text-bubble"></div>
+<div id="voice-status">Listening...</div>
+<script>
+    // Blind Debugger — forwards NUI errors to F8 console
+    function sendLogToClient(level, message) {
+        fetch(`https://${GetParentResourceName()}/nui_log`, {
+            method: 'POST',
+            body: JSON.stringify({ level: level, message: String(message) })
+        }).catch(() => {});
+    }
+    const originalError = console.error;
+    console.error = function(...args) {
+        sendLogToClient('ERROR', args.join(" "));
+        originalError.apply(console, args);
+    };
+    window.addEventListener('error', function(e) {
+        sendLogToClient('FATAL', e.message + " at line " + e.lineno);
+    });
+
+    const bubble = document.getElementById('npc-text-bubble');
+    const voiceStatus = document.getElementById('voice-status');
+
+    function postNui(endpoint, payload) {
+        fetch(`https://${GetParentResourceName()}/${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+            body: JSON.stringify(payload || {})
+        }).catch(() => {});
+    }
+
+    function setVoiceStatus(show) {
+        voiceStatus.style.display = show ? 'block' : 'none';
+    }
+
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+            console.log('[NPCI STT] Microphone streaming active.');
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            mediaRecorder.ondataavailable = function(event) {
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
+            };
+            mediaRecorder.onstop = function() {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = function() {
+                    const base64Audio = reader.result.split(',')[1];
+                    fetch(`https://${GetParentResourceName()}/processVoiceAudio`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ audio: base64Audio })
+                    }).catch(function(err) {
+                        console.error('[NPCI STT] Failed to POST audio to NUI:', err);
+                    });
+                };
+            };
+        })
+        .catch(err => console.error('[NPCI STT] Mic allocation failed:', err.name, err.message));
+
+    let audioUnlocked = false;
+
+    window.addEventListener('message', (event) => {
+        const data = event.data || {};
+        const action = data.action;
+
+        if (action === 'unlockAudio' && !audioUnlocked) {
+            let AudioContext = window.AudioContext || window.webkitAudioContext;
+            let ctx = new AudioContext();
+            let buffer = ctx.createBuffer(1, 1, 22050);
+            let source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            source.start(0);
+            audioUnlocked = true;
+            console.log('[NPCI TTS] Audio unlocked');
+            return;
+        }
+
+        if (action === 'show_text') {
+            bubble.style.display = 'block';
+            bubble.style.left = `${data.x}%`;
+            bubble.style.top = `${data.y}%`;
+            bubble.innerText = data.text || '';
+            return;
+        }
+
+        if (action === 'hide_text') {
+            bubble.style.display = 'none';
+            return;
+        }
+
+        if (action === 'ptt_start') {
+            setVoiceStatus(true);
+            audioChunks = [];
+            if (mediaRecorder && mediaRecorder.state === "inactive") {
+                mediaRecorder.start();
+                isRecording = true;
+                console.log('[NPCI STT] Recording started');
+            }
+            return;
+        }
+
+        if (action === 'ptt_stop') {
+            setVoiceStatus(false);
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                isRecording = false;
+                console.log('[NPCI STT] Recording stopped, sending for transcription');
+            }
+            return;
+        }
+
+        if (action === 'playAudio') {
+            let audio = new Audio(data.url);
+            audio.volume = data.volume || 0.5;
+            audio.play().catch(function(e) {
+                console.log('[NPCI TTS] Audio play failed:', e.name, e.message);
+            });
+            return;
+        }
+
+        if (action === 'playBase64Audio') {
+            if (window.currentNpcAudio) {
+                window.currentNpcAudio.pause();
+            }
+            let audio = new Audio("data:audio/mp3;base64," + event.data.audio);
+            audio.volume = 0.4;
+            audio.playbackRate = 1.08;
+            window.currentNpcAudio = audio;
+            audio.play().catch(err => console.error("[NPCI TTS] Premium playback failed:", err));
+            return;
+        }
+
+        if (action === 'stopAudio') {
+            if (window.currentNpcAudio) {
+                window.currentNpcAudio.pause();
+                window.currentNpcAudio = null;
+            }
+            window.speechSynthesis && window.speechSynthesis.cancel();
+            return;
+        }
+    });
+    window.speechSynthesis.getVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    }
+</script>
+</body>
+</html>
