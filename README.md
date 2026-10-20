@@ -151,4 +151,4 @@ In-game Conversation Examples:
 
 ## Credits & license
 
-Built from the NPCI prototype by the original author Idris Awad, extended for the Driss World FiveM server. Released under the MIT License — see [LICENSE](LICENSE).
+Built from the NPCI prototype by the original author Idris Awad, extended for the [Driss World](https://dsc.gg/drissworld) FiveM server. Released under the MIT License — see [LICENSE](LICENSE).
