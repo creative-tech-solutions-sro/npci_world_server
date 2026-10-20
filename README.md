@@ -1,5 +1,7 @@
 # NPCI — AI NPC World Server
 
+<img width="1573" height="656" alt="NPCI_Banner" src="https://github.com/user-attachments/assets/00ed8a2a-3e61-4101-88f6-6070d920c338" />
+
 **NPCI** turns the static pedestrians of a FiveM/ESX server into persistent, voice-capable AI characters. NPCs remember you across sessions, answer spoken or typed questions, react to their environment, send and receive SMS through the in-game phone, and can hold conversations with several players and multiple NPCs at once.
 
 This repository is the **server-ready build** used on a production ESX server (GTA V build b3258). It is a self-contained FiveM resource — drop it in `resources/`, `ensure` it, and the database schema creates itself.
@@ -138,6 +140,15 @@ npci_world_server/
     └── sv_setupdatabase.lua  # auto-migration for npci_memory
 ```
 
+In-game Conversation Examples:
+
+<img width="1451" height="885" alt="NPCI Example" src="https://github.com/user-attachments/assets/401d2639-d2c1-4987-b72b-63c37e20119e" />
+<img width="1451" height="885" alt="NPCI Example" src="https://github.com/user-attachments/assets/df121b70-097a-479a-9755-a3c3e2aa70f7" />
+<img width="1451" height="885" alt="NPCI Example" src="https://github.com/user-attachments/assets/c128d208-ee02-45a6-928b-f55ab4d134d4" />
+<img width="1451" height="885" alt="NPCI Example" src="https://github.com/user-attachments/assets/f07e0c72-fd6b-4216-94c2-167b0c41bfaa" />
+<img width="1451" height="885" alt="NPCI Example" src="https://github.com/user-attachments/assets/236e68d4-e37c-4c1d-b8b7-7e13a4f7f1eb" />
+<img width="1451" height="885" alt="NPCI Example" src="https://github.com/user-attachments/assets/21f22027-ea40-4aee-8dce-62783680f39c" />
+
 ## Credits & license
 
-Built from the NPCI prototype by the original author, extended for this server. Released under the MIT License — see [LICENSE](LICENSE).
+Built from the NPCI prototype by the original author Idris Awad, extended for the Driss World FiveM server. Released under the MIT License — see [LICENSE](LICENSE).
